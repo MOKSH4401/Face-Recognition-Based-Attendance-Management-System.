@@ -1,0 +1,470 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance System - Take Attendance{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-6 mb-2"><i class="fas fa-clipboard-check me-2" style="color:var(--ams-accent)"></i>Take Attendance</h1>
+        <p class="text-muted mb-0">Start a class session, display the rotating PIN, and monitor students marking present in real time.</p>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <i class="fas fa-shield-halved me-2"></i>
+    <strong>GPS disclaimer:</strong> Device location can be spoofed and cannot guarantee physical presence.
+    Attendance is marked only when the student is logged in, enrolled, enters the current PIN, and the
+    <em>server</em> confirms coordinates are inside the classroom radius with acceptable GPS accuracy.
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-play me-2"></i>Start session</h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="course-select" class="form-label">Subject</label>
+                    <select class="form-select" id="course-select">
+                        <option value="">-- Select a subject --</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}"
+                            data-lat="{{ course.classroom_lat or '' }}"
+                            data-lng="{{ course.classroom_lng or '' }}"
+                            data-radius="{{ course.classroom_radius_meters or default_radius }}"
+                            {% if selected_course_id and selected_course_id == course.id %}selected{% endif %}>
+                            {{ course.name }} ({{ course.course_id }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if current_slot %}
+                    <div class="alert alert-success mt-2 mb-0 py-2 small">
+                        <i class="fas fa-calendar-check me-1"></i>
+                        <strong>Current class:</strong>
+                        {{ current_slot.subject.name if current_slot.subject else '—' }}
+                        · {{ current_slot.start_time.strftime('%H:%M') }}–{{ current_slot.end_time.strftime('%H:%M') }}
+                        · Room {{ current_slot.room }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3 d-none">
+                    <label for="subject-select" class="form-label">Subject</label>
+                    <select class="form-select" id="subject-select">
+                        <option value="">-- Optional subject --</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}" data-course="{{ subject.course_id or '' }}"
+                            {% if selected_subject_id and selected_subject_id == subject.id %}selected{% endif %}>
+                            {{ subject.code }} — {{ subject.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6 mb-3">
+                        <label class="form-label" for="duration-minutes">Duration (min)</label>
+                        <input type="number" class="form-control" id="duration-minutes" min="1" max="180" value="{{ default_duration }}">
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label" for="radius-meters">Radius (m)</label>
+                        <input type="number" class="form-control" id="radius-meters" min="10" max="2000" value="{{ default_radius }}">
+                    </div>
+                </div>
+                <p class="small text-muted">PIN rotates every {{ pin_period }} seconds. Classroom GPS is taken from this device unless the course already has saved coordinates.</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary" id="btn-start">
+                        <i class="fas fa-key me-2"></i>Start PIN session
+                    </button>
+                    <button type="button" class="btn btn-outline-danger d-none" id="btn-stop">
+                        <i class="fas fa-stop me-2"></i>Close session
+                    </button>
+                </div>
+                <div id="session-status" class="alert alert-info mt-3 d-none mb-0">
+                    <span id="status-message"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-hashtag me-2"></i>Live PIN</h4>
+                <span class="badge bg-light text-dark" id="scan-badge">Idle</span>
+            </div>
+            <div class="card-body text-center py-4">
+                <div class="display-3 fw-bold font-monospace" id="pin-display" style="letter-spacing: 0.15em;">------</div>
+                <p class="text-muted mb-0 mt-2">Refreshes in <span id="pin-left" class="fw-bold">—</span>s · Session <span id="session-left" class="fw-bold">—</span></p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-0"><i class="fas fa-user-check me-2 text-success"></i>Present Students</h5>
+                    <span class="badge bg-success" id="present-count">0</span>
+                    <span class="badge bg-secondary-subtle text-secondary small" id="roster-info">0 enrolled</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="text" id="search-student" class="form-control form-control-sm" placeholder="Filter student..." style="max-width: 160px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-list" title="Refresh list">
+                        <i class="fas fa-rotate"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0" id="present-table">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Student Name</th>
+                                <th>Roll No / ID</th>
+                                <th>Marked Time</th>
+                                <th>GPS Distance</th>
+                                <th class="text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="present-list">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fas fa-user-clock fa-2x mb-2 text-secondary opacity-50 d-block"></i>
+                                    No students marked present yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light py-2 text-muted small d-flex justify-content-between align-items-center">
+                <span id="footer-summary">Select a course to view attendance records.</span>
+                <span class="text-success" id="live-indicator"><i class="fas fa-circle-dot me-1 fa-fade"></i>Live sync ready</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function () {
+    const courseSelect = document.getElementById('course-select');
+    const subjectSelect = document.getElementById('subject-select');
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+    const btnRefreshList = document.getElementById('btn-refresh-list');
+    const searchStudent = document.getElementById('search-student');
+    const statusBox = document.getElementById('session-status');
+    const statusMessage = document.getElementById('status-message');
+    const pinDisplay = document.getElementById('pin-display');
+    const pinLeftEl = document.getElementById('pin-left');
+    const sessionLeftEl = document.getElementById('session-left');
+    const badge = document.getElementById('scan-badge');
+    const presentList = document.getElementById('present-list');
+    const presentCount = document.getElementById('present-count');
+    const rosterInfo = document.getElementById('roster-info');
+    const footerSummary = document.getElementById('footer-summary');
+    const initialSessionId = {{ active_session_id or 'null' }};
+
+    let sessionId = initialSessionId;
+    let pinTimer = null;
+    let pollTimer = null;
+    let socket = null;
+    let currentPresentData = [];
+    let currentEnrolledCount = 0;
+
+    function showStatus(type, message) {
+        statusBox.className = 'alert alert-' + type + ' mt-3 mb-0';
+        statusMessage.textContent = message;
+    }
+
+    function filterSubjects() {
+        const cid = courseSelect.value;
+        if (!subjectSelect) return;
+        let matched = false;
+        Array.from(subjectSelect.options).forEach(function (opt, i) {
+            if (i === 0) return;
+            const oc = opt.getAttribute('data-course') || '';
+            if (cid && oc && oc === cid) {
+                subjectSelect.value = opt.value;
+                matched = true;
+            }
+        });
+        if (!matched) subjectSelect.value = '';
+    }
+
+    function formatTime(isoStr) {
+        if (!isoStr) return '—';
+        try {
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return isoStr;
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch (e) {
+            return isoStr;
+        }
+    }
+
+    function renderPresent(rows, enrolledCount) {
+        currentPresentData = rows || [];
+        if (enrolledCount != null) currentEnrolledCount = enrolledCount;
+        presentCount.textContent = currentPresentData.length;
+
+        if (currentEnrolledCount > 0) {
+            rosterInfo.textContent = currentPresentData.length + ' / ' + currentEnrolledCount + ' present';
+            footerSummary.textContent = currentPresentData.length + ' of ' + currentEnrolledCount + ' enrolled students marked present.';
+        } else {
+            rosterInfo.textContent = currentPresentData.length + ' present';
+            footerSummary.textContent = currentPresentData.length + ' student(s) marked present.';
+        }
+
+        const query = (searchStudent.value || '').trim().toLowerCase();
+        const filtered = currentPresentData.filter(function (r) {
+            if (!query) return true;
+            const name = (r.name || '').toLowerCase();
+            const code = (r.student_code || '').toLowerCase();
+            return name.includes(query) || code.includes(query);
+        });
+
+        if (!filtered.length) {
+            if (currentPresentData.length === 0) {
+                presentList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' +
+                    '<i class="fas fa-user-clock fa-2x mb-2 text-secondary opacity-50 d-block"></i>' +
+                    'No students marked present yet.<br><small class="text-muted">Students will appear here automatically in real time as they submit their PIN.</small></td></tr>';
+            } else {
+                presentList.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No matching students found for "' + query + '".</td></tr>';
+            }
+            return;
+        }
+
+        presentList.innerHTML = filtered.map(function (r, idx) {
+            const dist = r.distance_meters != null
+                ? '<span class="badge bg-light text-dark border"><i class="fas fa-location-dot text-primary me-1"></i>' + Math.round(r.distance_meters) + ' m</span>'
+                : '<span class="text-muted small">—</span>';
+            const time = formatTime(r.timestamp);
+            const code = r.student_code
+                ? '<span class="badge bg-secondary-subtle text-secondary font-monospace">' + r.student_code + '</span>'
+                : '<span class="text-muted">—</span>';
+            return '<tr>' +
+                '<td class="text-muted small">' + (idx + 1) + '</td>' +
+                '<td><strong><i class="fas fa-user-graduate text-secondary me-1"></i>' + (r.name || 'Unknown') + '</strong></td>' +
+                '<td>' + code + '</td>' +
+                '<td class="text-muted small"><i class="far fa-clock me-1"></i>' + time + '</td>' +
+                '<td>' + dist + '</td>' +
+                '<td class="text-end"><span class="badge bg-success"><i class="fas fa-check me-1"></i>Present</span></td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    searchStudent.addEventListener('input', function () {
+        renderPresent(currentPresentData, currentEnrolledCount);
+    });
+
+    btnRefreshList.addEventListener('click', function () {
+        refreshLive();
+    });
+
+    function getPosition() {
+        return new Promise(function (resolve, reject) {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation is not supported in this browser.'));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function (pos) { resolve(pos); },
+                function (err) {
+                    const map = {
+                        1: 'Location permission denied. Allow location or save classroom coordinates on the course.',
+                        2: 'Location unavailable.',
+                        3: 'Location request timed out.'
+                    };
+                    reject(new Error(map[err.code] || err.message || 'Could not read location.'));
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        });
+    }
+
+    function refreshLive() {
+        if (!sessionId) {
+            if (courseSelect.value) checkActiveSessionForCourse(courseSelect.value);
+            return;
+        }
+        $.getJSON('/api/sessions/' + sessionId + '/live').done(function (data) {
+            if (data.session && data.session.pin) {
+                pinDisplay.textContent = data.session.pin;
+                pinLeftEl.textContent = data.session.pin_seconds_left;
+                sessionLeftEl.textContent = data.session.remaining_seconds + 's left';
+                badge.textContent = 'Live';
+                badge.className = 'badge bg-success';
+                btnStop.classList.remove('d-none');
+            }
+            renderPresent(data.present || [], data.enrolled_count);
+        }).fail(function () {
+            if (courseSelect.value) checkActiveSessionForCourse(courseSelect.value);
+        });
+    }
+
+    function connectSocket() {
+        if (socket) socket.disconnect();
+        try {
+            socket = io({ transports: ['websocket', 'polling'] });
+            socket.on('connect', function () {
+                if (sessionId) socket.emit('join_session', { session_id: sessionId });
+            });
+            socket.on('attendance_update', function (payload) {
+                if (payload.present_count != null) presentCount.textContent = payload.present_count;
+                refreshLive();
+                if (payload.closed) {
+                    badge.textContent = 'Closed';
+                    badge.className = 'badge bg-secondary';
+                    pinDisplay.textContent = '------';
+                    btnStop.classList.add('d-none');
+                    if (pinTimer) clearInterval(pinTimer);
+                }
+            });
+            socket.on('session_started', function () { refreshLive(); });
+        } catch (e) {
+            console.warn('Socket.IO connection failed, using polling fallback', e);
+        }
+    }
+
+    function startPinRefresh() {
+        if (pinTimer) clearInterval(pinTimer);
+        pinTimer = setInterval(function () {
+            if (!sessionId) return;
+            $.getJSON('/api/sessions/' + sessionId + '/pin').done(function (data) {
+                pinDisplay.textContent = data.pin;
+                pinLeftEl.textContent = data.pin_seconds_left;
+                if (data.session) sessionLeftEl.textContent = data.session.remaining_seconds + 's left';
+            }).fail(function () {
+                badge.textContent = 'Ended';
+                badge.className = 'badge bg-secondary';
+            });
+        }, 1000);
+
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(function () {
+            if (sessionId) refreshLive();
+        }, 5000);
+    }
+
+    function checkActiveSessionForCourse(courseId) {
+        if (!courseId) return;
+        $.getJSON('/api/sessions/active?course_id=' + courseId).done(function (data) {
+            if (data.session && data.session.id) {
+                sessionId = data.session.id;
+                pinDisplay.textContent = data.session.pin || '------';
+                pinLeftEl.textContent = data.session.pin_seconds_left != null ? data.session.pin_seconds_left : '—';
+                sessionLeftEl.textContent = (data.session.remaining_seconds != null ? data.session.remaining_seconds : '0') + 's left';
+                badge.textContent = 'Live';
+                badge.className = 'badge bg-success';
+                btnStop.classList.remove('d-none');
+                showStatus('info', 'Active session in progress for this class. Share the rotating PIN with students in room.');
+                connectSocket();
+                startPinRefresh();
+                renderPresent(data.present || [], data.enrolled_count);
+            } else {
+                sessionId = null;
+                pinDisplay.textContent = '------';
+                pinLeftEl.textContent = '—';
+                sessionLeftEl.textContent = '—';
+                badge.textContent = 'Idle';
+                badge.className = 'badge bg-light text-dark';
+                btnStop.classList.add('d-none');
+                if (pinTimer) clearInterval(pinTimer);
+                renderPresent(data.present || [], data.enrolled_count);
+                if (data.present && data.present.length > 0) {
+                    showStatus('info', 'Showing ' + data.present.length + ' attendance record(s) recorded today.');
+                }
+            }
+        });
+    }
+
+    courseSelect.addEventListener('change', function () {
+        filterSubjects();
+        checkActiveSessionForCourse(courseSelect.value);
+    });
+    filterSubjects();
+
+    if (courseSelect.value) {
+        checkActiveSessionForCourse(courseSelect.value);
+    }
+
+    btnStart.addEventListener('click', async function () {
+        if (!courseSelect.value) {
+            showStatus('danger', 'Select a course first.');
+            return;
+        }
+        btnStart.disabled = true;
+        showStatus('info', 'Starting session…');
+        const payload = {
+            course_id: courseSelect.value,
+            subject_id: subjectSelect.value || null,
+            duration_minutes: document.getElementById('duration-minutes').value,
+            radius_meters: document.getElementById('radius-meters').value
+        };
+        const opt = courseSelect.options[courseSelect.selectedIndex];
+        if (!opt.getAttribute('data-lat') || !opt.getAttribute('data-lng')) {
+            try {
+                const pos = await getPosition();
+                payload.latitude = pos.coords.latitude;
+                payload.longitude = pos.coords.longitude;
+            } catch (err) {
+                showStatus('danger', err.message);
+                btnStart.disabled = false;
+                return;
+            }
+        }
+        $.ajax({
+            url: '/api/sessions/start',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload)
+        }).done(function (res) {
+            sessionId = res.session.id;
+            pinDisplay.textContent = res.session.pin;
+            pinLeftEl.textContent = res.session.pin_seconds_left;
+            sessionLeftEl.textContent = res.session.remaining_seconds + 's left';
+            badge.textContent = 'Live';
+            badge.className = 'badge bg-success';
+            btnStop.classList.remove('d-none');
+            showStatus('success', res.message);
+            connectSocket();
+            startPinRefresh();
+            refreshLive();
+        }).fail(function (xhr) {
+            const msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Could not start session.';
+            showStatus('danger', msg);
+            if (xhr.status === 409 && xhr.responseJSON && xhr.responseJSON.session) {
+                sessionId = xhr.responseJSON.session.id;
+                btnStop.classList.remove('d-none');
+                badge.textContent = 'Live';
+                badge.className = 'badge bg-success';
+                connectSocket();
+                startPinRefresh();
+                refreshLive();
+            }
+        }).always(function () {
+            btnStart.disabled = false;
+        });
+    });
+
+    btnStop.addEventListener('click', function () {
+        if (!sessionId) return;
+        $.ajax({
+            url: '/api/sessions/' + sessionId + '/stop',
+            type: 'POST'
+        }).done(function (res) {
+            showStatus('warning', res.message);
+            badge.textContent = 'Closed';
+            badge.className = 'badge bg-secondary';
+            pinDisplay.textContent = '------';
+            btnStop.classList.add('d-none');
+            if (pinTimer) clearInterval(pinTimer);
+            if (pollTimer) clearInterval(pollTimer);
+        });
+    });
+})();
+</script>
+{% endblock %}

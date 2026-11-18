@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Global Search{% endblock %}
+
+{% block content %}
+<div class="global-search-page">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1">
+                <i class="fas fa-search me-2"></i>Global Search
+            </h1>
+            <p class="text-muted mb-0">
+                Search students, faculty, courses, departments, and attendance by date.
+            </p>
+        </div>
+    </div>
+
+    <div id="search-error" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4 search-filter-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Search &amp; Filters</h5>
+        </div>
+        <div class="card-body">
+            <form id="global-search-form" class="row g-3 align-items-end">
+                <div class="col-12 col-lg-4">
+                    <label for="search-q" class="form-label">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="search" class="form-control" id="search-q" name="q"
+                               value="{{ initial_q }}"
+                               placeholder="Name, ID, email, course, department…"
+                               autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-type" class="form-label">Type</label>
+                    <select class="form-select" id="search-type" name="type">
+                        <option value="all" {% if initial_type == 'all' %}selected{% endif %}>All</option>
+                        <option value="student" {% if initial_type == 'student' %}selected{% endif %}>Student</option>
+                        <option value="faculty" {% if initial_type == 'faculty' %}selected{% endif %}>Faculty</option>
+                        <option value="course" {% if initial_type == 'course' %}selected{% endif %}>Course</option>
+                        <option value="department" {% if initial_type == 'department' %}selected{% endif %}>Department</option>
+                        <option value="attendance" {% if initial_type == 'attendance' %}selected{% endif %}>Attendance</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-course" class="form-label">Course</label>
+                    <select class="form-select" id="search-course" name="course_id">
+                        <option value="all">All Courses</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-department" class="form-label">Department</label>
+                    <select class="form-select" id="search-department" name="department">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}">{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if is_admin_user %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-faculty" class="form-label">Faculty</label>
+                    <select class="form-select" id="search-faculty" name="faculty_id">
+                        <option value="all">All Faculty</option>
+                        {% for member in faculty_list %}
+                        <option value="{{ member.id }}">{{ member.faculty_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-date-from" class="form-label">Attendance From</label>
+                    <input type="date" class="form-control" id="search-date-from" name="date_from"
+                           value="{{ initial_date_from }}">
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-date-to" class="form-label">Attendance To</label>
+                    <input type="date" class="form-control" id="search-date-to" name="date_to"
+                           value="{{ initial_date_to }}">
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-sort-by" class="form-label">Sort By</label>
+                    <select class="form-select" id="search-sort-by" name="sort_by">
+                        <option value="relevance">Relevance</option>
+                        <option value="title">Name / Title</option>
+                        <option value="type">Type</option>
+                        <option value="department">Department</option>
+                        <option value="date">Date</option>
+                        <option value="id">ID</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-sort-dir" class="form-label">Order</label>
+                    <select class="form-select" id="search-sort-dir" name="sort_dir">
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label for="search-per-page" class="form-label">Per Page</label>
+                    <select class="form-select" id="search-per-page" name="per_page">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto ms-md-auto">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Search
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-search-reset">
+                            <i class="fas fa-undo me-1"></i>Reset
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Count chips -->
+    <div class="d-flex flex-wrap gap-2 mb-3" id="search-count-chips">
+        <span class="badge rounded-pill bg-secondary search-chip" data-type="all">All <span class="chip-n">0</span></span>
+        <span class="badge rounded-pill bg-primary search-chip" data-type="student">Students <span class="chip-n">0</span></span>
+        <span class="badge rounded-pill bg-info text-dark search-chip" data-type="faculty">Faculty <span class="chip-n">0</span></span>
+        <span class="badge rounded-pill bg-success search-chip" data-type="course">Courses <span class="chip-n">0</span></span>
+        <span class="badge rounded-pill bg-warning text-dark search-chip" data-type="department">Departments <span class="chip-n">0</span></span>
+        <span class="badge rounded-pill bg-danger search-chip" data-type="attendance">Attendance <span class="chip-n">0</span></span>
+    </div>
+
+    <!-- Results -->
+    <div class="card shadow-sm">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Results</h5>
+            <span class="badge bg-primary" id="search-result-count">0 results</span>
+        </div>
+        <div class="card-body p-0">
+            <div id="search-loading" class="text-center py-5 d-none">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-2 mb-0">Searching…</p>
+            </div>
+            <div id="search-empty" class="text-center text-muted py-5">
+                <i class="fas fa-search fa-2x mb-2 opacity-50"></i>
+                <p class="mb-0">Enter a query or apply filters to search.</p>
+            </div>
+            <div class="table-responsive d-none" id="search-table-wrap">
+                <table class="table table-hover mb-0 align-middle" id="search-results-table">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th class="sortable" data-sort="type">Type</th>
+                            <th class="sortable" data-sort="title">Title</th>
+                            <th class="d-none d-md-table-cell">Details</th>
+                            <th class="sortable d-none d-lg-table-cell" data-sort="department">Department</th>
+                            <th class="sortable" data-sort="date">Date</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="search-results-body"></tbody>
+                </table>
+            </div>
+            <!-- Mobile cards -->
+            <div class="d-md-none d-none" id="search-cards"></div>
+        </div>
+        <div class="card-footer" id="search-pagination-wrap">
+            <nav aria-label="Search pagination">
+                <ul class="pagination pagination-sm flex-wrap justify-content-center mb-0" id="search-pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/global-search.js') }}"></script>
+{% endblock %}

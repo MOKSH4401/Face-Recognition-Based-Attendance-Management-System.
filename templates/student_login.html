@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <div class="card auth-card">
+            <div class="card-header">
+                <p class="eyebrow text-uppercase small mb-1" style="color:var(--ams-accent);letter-spacing:.08em;font-weight:700;font-size:.72rem;">Student Portal</p>
+                <h3><i class="fas fa-user-graduate me-2" style="color:var(--ams-accent)"></i>Student Login</h3>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                <form method="POST" action="{{ url_for('student_login') }}">
+                    <div class="mb-3">
+                        <label for="login_id" class="form-label">Student ID or Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-id-badge"></i></span>
+                            <input type="text" id="login_id" name="login_id" class="form-control" required
+                                   placeholder="e.g. STU001 or student@email.com" autocomplete="username">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="password" name="password" class="form-control" required
+                                   autocomplete="current-password">
+                        </div>
+                        <div class="form-text">Default password is your Student ID (unless changed).</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-right-to-bracket me-2"></i>Enter Portal
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center small text-muted">
+                <a href="{{ url_for('login') }}">Admin</a> ·
+                <a href="{{ url_for('faculty_login') }}">Faculty</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

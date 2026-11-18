@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Database Utilities for Facial Recognition Attendance System
-Helps with database migration and maintenance
+Database utilities for AttendSys (PIN + GPS attendance).
+Helps with database migration and maintenance.
 """
 
 import os
@@ -79,14 +79,12 @@ def export_data(source_db_type='postgresql', output_file='db_export.json'):
         
         # Students
         students = []
-        for row in session.execute(text("SELECT id, name, student_id, course_id, face_encoding, created_at FROM students")):
+        for row in session.execute(text("SELECT id, name, student_id, created_at FROM students")):
             students.append({
                 'id': row[0],
                 'name': row[1],
                 'student_id': row[2],
-                'course_id': row[3],
-                'face_encoding': row[4],
-                'created_at': row[5].isoformat() if row[5] else None
+                'created_at': row[3].isoformat() if row[3] else None
             })
         data['students'] = students
         
@@ -168,13 +166,11 @@ def import_data(target_db_type='mysql', input_file='db_export.json'):
         for student in data['students']:
             created_at = student['created_at'] if student['created_at'] else datetime.now().isoformat()
             session.execute(
-                text("INSERT INTO students (id, name, student_id, course_id, face_encoding, created_at) VALUES (:id, :name, :student_id, :course_id, :face_encoding, :created_at)"),
+                text("INSERT INTO students (id, name, student_id, created_at) VALUES (:id, :name, :student_id, :created_at)"),
                 {
                     'id': student['id'],
                     'name': student['name'],
                     'student_id': student['student_id'],
-                    'course_id': student['course_id'],
-                    'face_encoding': student['face_encoding'],
                     'created_at': created_at
                 }
             )

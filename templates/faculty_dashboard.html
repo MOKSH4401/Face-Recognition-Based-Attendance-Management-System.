@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block title %}Faculty Analytics Dashboard{% endblock %}
+
+{% block page_heading %}Faculty Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-dashboard">
+    <div class="page-hero">
+        <div>
+            <p class="eyebrow mb-1">Faculty</p>
+            <h1 class="display-6 mb-1">
+                <i class="fas fa-chalkboard-teacher me-2" style="color:var(--ams-accent)"></i>Faculty Dashboard
+            </h1>
+            <p class="text-muted mb-0">
+                {{ faculty.faculty_name }} &middot; {{ faculty.designation }}, {{ faculty.department }}
+                <span id="analytics-updated" class="ms-2 small"></span>
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('attendance') }}" class="btn btn-primary">
+                <i class="fas fa-key me-1"></i>PIN Attendance
+            </a>
+            <button type="button" class="btn btn-outline-secondary" id="btn-refresh-analytics">
+                <i class="fas fa-rotate me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <div id="analytics-error" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-primary"><i class="fas fa-user-graduate"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-total-students">—</div>
+                            <div class="analytics-kpi-label">Enrolled Students</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-info"><i class="fas fa-book"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-courses">{{ course_count }}</div>
+                            <div class="analytics-kpi-label">Assigned Courses</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-success"><i class="fas fa-clipboard-check"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-today-attendance">—</div>
+                            <div class="analytics-kpi-label">Today's Attendance</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-info"><i class="fas fa-user-check"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-present">—</div>
+                            <div class="analytics-kpi-label">Present Students</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-danger"><i class="fas fa-user-times"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-absent">—</div>
+                            <div class="analytics-kpi-label">Absent Students</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-secondary"><i class="fas fa-percent"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-percentage">—</div>
+                            <div class="analytics-kpi-label">Attendance %</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon" style="background:#0d6efd;"><i class="fas fa-calendar-week"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-weekly">—</div>
+                            <div class="analytics-kpi-label">Weekly Attendance</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon" style="background:#20c997;"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-monthly">—</div>
+                            <div class="analytics-kpi-label">Monthly Attendance</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Hidden faculty KPI so shared JS does not error -->
+        <span id="kpi-total-faculty" class="d-none">—</span>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100 analytics-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Weekly Attendance</h5>
+                    <span class="badge bg-primary">Bar Chart</span>
+                </div>
+                <div class="card-body">
+                    <div class="analytics-chart-wrap">
+                        <canvas id="chart-weekly-bar"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 analytics-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-info"></i>Today Status</h5>
+                    <span class="badge bg-info">Pie Chart</span>
+                </div>
+                <div class="card-body">
+                    <div class="analytics-chart-wrap analytics-chart-wrap-sm">
+                        <canvas id="chart-present-pie"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm h-100 analytics-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-success"></i>Monthly Attendance Trend</h5>
+                    <span class="badge bg-success">Line Chart</span>
+                </div>
+                <div class="card-body">
+                    <div class="analytics-chart-wrap">
+                        <canvas id="chart-monthly-line"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100 analytics-chart-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-book me-2 text-warning"></i>My Courses (30 days)</h5>
+                    <span class="badge bg-warning text-dark">Bar Chart</span>
+                </div>
+                <div class="card-body">
+                    <div class="analytics-chart-wrap">
+                        <canvas id="chart-course-bar"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('attendance') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-key me-2"></i>PIN Attendance
+                        </a>
+                        <a href="{{ url_for('reports') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-bar me-2"></i>View Attendance Reports
+                        </a>
+                        <a href="{{ url_for('defaulters') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Defaulter List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>My Assigned Courses</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Code</th>
+                                    <th>Students</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if assigned_courses %}
+                                    {% for course in assigned_courses %}
+                                    <tr>
+                                        <td>{{ course.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ course.course_id }}</span></td>
+                                        <td>{{ course.students.count() }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-4">
+                                            No courses assigned yet. Contact an administrator.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/analytics-dashboard.js') }}"></script>
+{% endblock %}

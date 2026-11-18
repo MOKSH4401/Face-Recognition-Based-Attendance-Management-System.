@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <div class="card auth-card">
+            <div class="card-header">
+                <p class="eyebrow text-uppercase small mb-1" style="color:var(--ams-accent);letter-spacing:.08em;font-weight:700;font-size:.72rem;">Administration</p>
+                <h3><i class="fas fa-user-shield me-2" style="color:var(--ams-accent)"></i>Admin Login</h3>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input type="email" id="email" name="email" class="form-control" required autocomplete="username">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="password" name="password" class="form-control" required autocomplete="current-password">
+                        </div>
+                    </div>
+                    <div class="mb-3 text-end">
+                        <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-right-to-bracket me-2"></i>Sign In
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <div class="mb-2">No account? <a href="{{ url_for('register') }}">Register</a></div>
+                <div class="small text-muted">
+                    <a href="{{ url_for('faculty_login') }}">Faculty</a> ·
+                    <a href="{{ url_for('student_login') }}">Student</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

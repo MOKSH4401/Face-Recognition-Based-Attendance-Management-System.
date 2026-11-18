@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications — Admin{% endblock %}
+
+{% block content %}
+<div class="notifications-module">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1">
+                <i class="fas fa-bell me-2"></i>Notification Module
+            </h1>
+            <p class="text-muted mb-0">Create notifications for faculty and students. History is stored in the database.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Create Notification</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('notifications_page') }}">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title"
+                                   maxlength="200" required placeholder="e.g. Midterm schedule update">
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" name="message" rows="5"
+                                      required placeholder="Write the notification body…"></textarea>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="info">Info</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="audience" class="form-label">Audience</label>
+                                <select class="form-select" id="audience" name="audience">
+                                    <option value="all">Everyone (Faculty + Students)</option>
+                                    <option value="faculty">All Faculty</option>
+                                    <option value="students">All Students</option>
+                                    <option value="course">Specific Course</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3 d-none" id="course-wrap">
+                            <label for="course_id" class="form-label">Course</label>
+                            <select class="form-select" id="course_id" name="course_id">
+                                <option value="">— Select course —</option>
+                                {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.name }} ({{ course.course_id }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Assigned faculty and enrolled students receive this.</div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i>Send Notification
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Notification History</h5>
+                    <span class="badge bg-secondary">{{ history|length }} recent</span>
+                </div>
+                <div class="card-body">
+                    {% if not history %}
+                    <p class="text-muted text-center mb-0 py-4">No notifications yet. Create one to get started.</p>
+                    {% else %}
+                    <div class="row g-3">
+                        {% for n in history %}
+                        {% set unread = n.deliveries|selectattr('is_read', 'equalto', false)|list|length %}
+                        {% set total = n.deliveries|length %}
+                        {% set pclass = 'border-info' if n.priority == 'info' else ('border-warning' if n.priority == 'warning' else 'border-danger') %}
+                        {% set badge = 'bg-info text-dark' if n.priority == 'info' else ('bg-warning text-dark' if n.priority == 'warning' else 'bg-danger') %}
+                        <div class="col-12">
+                            <div class="card notification-history-card border-start border-4 {{ pclass }} shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                                        <div>
+                                            <span class="badge {{ badge }} me-1">{{ n.priority|capitalize }}</span>
+                                            <span class="badge bg-secondary">{{ n.audience|capitalize }}</span>
+                                            {% if n.course %}
+                                            <span class="badge bg-dark">{{ n.course.name }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '—' }}
+                                        </small>
+                                    </div>
+                                    <h6 class="card-title mb-1">{{ n.title }}</h6>
+                                    <p class="card-text small text-muted mb-2">{{ n.message }}</p>
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                        <small>
+                                            <i class="fas fa-users me-1"></i>{{ total }} recipient(s)
+                                            · <span class="text-warning">{{ unread }} unread</span>
+                                            · <span class="text-success">{{ total - unread }} read</span>
+                                        </small>
+                                        <form method="POST" action="{{ url_for('notification_delete', notif_id=n.id) }}"
+                                              onsubmit="return confirm('Delete this notification and all deliveries?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var audience = document.getElementById('audience');
+        var wrap = document.getElementById('course-wrap');
+        var course = document.getElementById('course_id');
+        function sync() {
+            var show = audience && audience.value === 'course';
+            if (wrap) wrap.classList.toggle('d-none', !show);
+            if (course) course.required = !!show;
+        }
+        if (audience) {
+            audience.addEventListener('change', sync);
+            sync();
+        }
+    })();
+</script>
+{% endblock %}

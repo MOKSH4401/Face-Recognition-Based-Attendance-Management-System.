@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Attendance System{% endblock %}</title>
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('ams-theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-bs-theme', t);
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="{% if session.get('role') %}app-shell{% else %}auth-shell{% endif %} {% block body_class %}{% endblock %}">
+
+{% if session.get('role') %}
+<div class="app-wrapper">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
+    <aside class="app-sidebar" id="app-sidebar">
+        <div class="sidebar-brand">
+            <a href="{{ url_for('index') }}" class="brand-link">
+                <span class="brand-mark"><i class="fas fa-id-card"></i></span>
+                <span class="brand-text">
+                    <span class="brand-name">AttendSys</span>
+                    <span class="brand-tag">PIN + GPS</span>
+                </span>
+            </a>
+            <button type="button" class="btn sidebar-close d-lg-none" id="sidebar-close" aria-label="Close menu">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            {% if session.get('role') == 'admin' %}
+            <div class="nav-section-label">Overview</div>
+            <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-gauge-high"></i><span>Dashboard</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('global_search') %}active{% endif %}" href="{{ url_for('global_search') }}">
+                <i class="fas fa-magnifying-glass"></i><span>Search</span>
+            </a>
+
+            <div class="nav-section-label">People</div>
+            <a class="nav-link {% if request.path == url_for('students') and not active_tab %}active{% endif %}" href="{{ url_for('students') }}">
+                <i class="fas fa-user-graduate"></i><span>Students</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('faculty_list') or request.path.startswith('/edit_faculty') or request.path.startswith('/assign_courses') %}active{% endif %}" href="{{ url_for('faculty_list') }}">
+                <i class="fas fa-chalkboard-teacher"></i><span>Faculty</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('courses') or (request.path == url_for('students') and active_tab == 'courses') %}active{% endif %}" href="{{ url_for('courses') }}">
+                <i class="fas fa-book"></i><span>Subjects / Courses</span>
+            </a>
+
+            <div class="nav-section-label">Operations</div>
+            <a class="nav-link {% if request.path == url_for('timetable_page') %}active{% endif %}" href="{{ url_for('timetable_page') }}">
+                <i class="fas fa-calendar-days"></i><span>Timetable</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('attendance') %}active{% endif %}" href="{{ url_for('attendance') }}">
+                <i class="fas fa-clipboard-check"></i><span>Take Attendance</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('reports') %}active{% endif %}" href="{{ url_for('reports') }}">
+                <i class="fas fa-chart-column"></i><span>Reports</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('defaulters') %}active{% endif %}" href="{{ url_for('defaulters') }}">
+                <i class="fas fa-triangle-exclamation"></i><span>Defaulters</span>
+            </a>
+
+            <div class="nav-section-label">System</div>
+            <a class="nav-link {% if request.path == url_for('notifications_page') %}active{% endif %}" href="{{ url_for('notifications_page') }}">
+                <i class="fas fa-bell"></i><span>Notifications</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('email_settings') %}active{% endif %}" href="{{ url_for('email_settings') }}">
+                <i class="fas fa-envelope"></i><span>Email</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('db_admin') %}active{% endif %}" href="{{ url_for('db_admin') }}">
+                <i class="fas fa-database"></i><span>Database</span>
+            </a>
+
+            {% elif session.get('role') == 'faculty' %}
+            <div class="nav-section-label">Faculty</div>
+            <a class="nav-link {% if request.path == url_for('faculty_dashboard') %}active{% endif %}" href="{{ url_for('faculty_dashboard') }}">
+                <i class="fas fa-gauge-high"></i><span>Dashboard</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('attendance') %}active{% endif %}" href="{{ url_for('attendance') }}">
+                <i class="fas fa-clipboard-check"></i><span>Take Attendance</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('timetable_page') %}active{% endif %}" href="{{ url_for('timetable_page') }}">
+                <i class="fas fa-calendar-days"></i><span>Timetable</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('global_search') %}active{% endif %}" href="{{ url_for('global_search') }}">
+                <i class="fas fa-magnifying-glass"></i><span>Search</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('reports') %}active{% endif %}" href="{{ url_for('reports') }}">
+                <i class="fas fa-chart-column"></i><span>Reports</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('notifications_page') %}active{% endif %}" href="{{ url_for('notifications_page') }}">
+                <i class="fas fa-bell"></i><span>Notifications</span>
+                {% if unread_notification_count %}<span class="badge rounded-pill text-bg-danger ms-auto">{{ unread_notification_count }}</span>{% endif %}
+            </a>
+            <a class="nav-link {% if request.path == url_for('defaulters') %}active{% endif %}" href="{{ url_for('defaulters') }}">
+                <i class="fas fa-triangle-exclamation"></i><span>Defaulters</span>
+            </a>
+
+            {% elif session.get('role') == 'student' %}
+            <div class="nav-section-label">Student</div>
+            <a class="nav-link {% if request.path == url_for('student_dashboard') %}active{% endif %}" href="{{ url_for('student_dashboard') }}">
+                <i class="fas fa-gauge-high"></i><span>Dashboard</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('notifications_page') %}active{% endif %}" href="{{ url_for('notifications_page') }}">
+                <i class="fas fa-bell"></i><span>Notifications</span>
+                {% if unread_notification_count %}<span class="badge rounded-pill text-bg-danger ms-auto">{{ unread_notification_count }}</span>{% endif %}
+            </a>
+            <a class="nav-link {% if request.path == url_for('student_courses') %}active{% endif %}" href="{{ url_for('student_courses') }}">
+                <i class="fas fa-book"></i><span>My Subjects</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('timetable_page') %}active{% endif %}" href="{{ url_for('timetable_page') }}">
+                <i class="fas fa-calendar-days"></i><span>Timetable</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('student_mark_attendance') %}active{% endif %}" href="{{ url_for('student_mark_attendance') }}">
+                <i class="fas fa-location-dot"></i><span>Mark Attendance</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('student_attendance') %}active{% endif %}" href="{{ url_for('student_attendance') }}">
+                <i class="fas fa-clipboard-list"></i><span>Attendance</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('student_reports') %}active{% endif %}" href="{{ url_for('student_reports') }}">
+                <i class="fas fa-download"></i><span>Reports</span>
+            </a>
+            <a class="nav-link {% if request.path == url_for('student_profile') %}active{% endif %}" href="{{ url_for('student_profile') }}">
+                <i class="fas fa-user"></i><span>Profile</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                {% if session.get('role') == 'admin' %}
+                <div class="user-avatar"><i class="fas fa-user-shield"></i></div>
+                <div class="user-meta">
+                    <strong>{{ session.get('username') }}</strong>
+                    <span>Administrator</span>
+                </div>
+                {% elif session.get('role') == 'faculty' %}
+                <div class="user-avatar"><i class="fas fa-chalkboard-teacher"></i></div>
+                <div class="user-meta">
+                    <strong>{{ session.get('faculty_name') }}</strong>
+                    <span>Faculty</span>
+                </div>
+                {% else %}
+                <div class="user-avatar"><i class="fas fa-user-graduate"></i></div>
+                <div class="user-meta">
+                    <strong>{{ session.get('student_name') }}</strong>
+                    <span>Student</span>
+                </div>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-logout w-100">
+                <i class="fas fa-right-from-bracket me-2"></i>Logout
+            </a>
+        </div>
+    </aside>
+
+    <div class="app-main">
+        <header class="app-topbar">
+            <div class="topbar-left">
+                <button type="button" class="btn btn-icon d-lg-none" id="sidebar-toggle" aria-label="Open menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="topbar-title d-none d-md-block">
+                    {% block page_heading %}{% endblock %}
+                </div>
+            </div>
+            <div class="topbar-right">
+                {% if session.get('role') in ['admin', 'faculty'] %}
+                <form class="topbar-search d-none d-md-flex" action="{{ url_for('global_search') }}" method="get" role="search">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-magnifying-glass"></i></span>
+                        <input type="search" class="form-control" name="q" placeholder="Search…"
+                               value="{{ request.args.get('q', '') if request.endpoint == 'global_search' else '' }}">
+                    </div>
+                </form>
+                {% endif %}
+                <button type="button" class="btn btn-icon" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle theme">
+                    <i class="fas fa-moon theme-icon-dark"></i>
+                    <i class="fas fa-sun theme-icon-light d-none"></i>
+                </button>
+                {% if session.get('role') in ['faculty', 'student'] %}
+                <a href="{{ url_for('notifications_page') }}" class="btn btn-icon position-relative" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    {% if unread_notification_count %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger" style="font-size:0.65rem">
+                        {{ unread_notification_count }}
+                    </span>
+                    {% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <main class="app-content">
+{% else %}
+<header class="auth-topbar">
+    <a href="{{ url_for('index') }}" class="brand-link">
+        <span class="brand-mark"><i class="fas fa-id-card"></i></span>
+        <span class="brand-name">AttendSys</span>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-icon" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle theme">
+            <i class="fas fa-moon theme-icon-dark"></i>
+            <i class="fas fa-sun theme-icon-light d-none"></i>
+        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('login') }}">Admin</a>
+        <a class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex" href="{{ url_for('faculty_login') }}">Faculty</a>
+        <a class="btn btn-sm btn-primary" href="{{ url_for('student_login') }}">Student</a>
+    </div>
+</header>
+<main class="auth-content">
+{% endif %}
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="content-inner animate-enter">
+                {% block content %}{% endblock %}
+            </div>
+
+{% if session.get('role') %}
+        </main>
+        <footer class="app-footer">
+            <span>© 2026 AttendSys · Attendance Management System</span>
+        </footer>
+    </div>
+</div>
+{% else %}
+</main>
+<footer class="auth-footer">
+    <span>© 2026 AttendSys · Attendance Management System</span>
+</footer>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

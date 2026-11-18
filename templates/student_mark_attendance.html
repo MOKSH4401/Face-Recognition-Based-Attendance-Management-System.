@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}Mark Attendance{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+    <div>
+        <p class="eyebrow mb-1">Student Portal</p>
+        <h1 class="display-6 mb-1"><i class="fas fa-location-dot me-2" style="color:var(--ams-accent)"></i>Mark Attendance</h1>
+        <p class="text-muted mb-0">{{ student.name }} ({{ student.student_id }})</p>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <i class="fas fa-info-circle me-2"></i>
+    GPS can be spoofed and does not prove you are physically in class. You must be logged in, enrolled in this class,
+    enter the PIN shown by faculty, and be within the classroom radius with usable GPS accuracy.
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{{ live_session.subject_name or live_session.course_name }}</h4>
+            </div>
+            <div class="card-body">
+                {% if already_marked %}
+                <div class="alert alert-success mb-0">You are already marked present for this session.</div>
+                {% else %}
+                <p class="text-muted">Ask your faculty for the current 6-digit PIN. Location is requested only after the server accepts the PIN.</p>
+                <div class="mb-3">
+                    <label class="form-label" for="pin-input">Current PIN</label>
+                    <input type="text" inputmode="numeric" maxlength="6" class="form-control form-control-lg text-center font-monospace" id="pin-input" placeholder="000000" autocomplete="one-time-code">
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary btn-lg" id="btn-mark">
+                        <i class="fas fa-check me-2"></i>Validate PIN, then share location
+                    </button>
+                </div>
+                <div id="mark-status" class="alert mt-3 d-none mb-0"></div>
+                {% endif %}
+            </div>
+        </div>
+        <p class="small text-muted mt-3 mb-0">Session ends in <span id="session-left">{{ live_session.remaining_seconds }}</span> seconds. Radius: {{ live_session.radius_meters }} m.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if not already_marked %}
+<script>
+(function () {
+    const sessionId = {{ live_session.id }};
+    const btn = document.getElementById('btn-mark');
+    const pinInput = document.getElementById('pin-input');
+    const box = document.getElementById('mark-status');
+    let submitting = false;
+
+    function show(type, msg) {
+        box.className = 'alert alert-' + type + ' mt-3 mb-0';
+        box.textContent = msg;
+    }
+
+    function getPosition() {
+        return new Promise(function (resolve, reject) {
+            if (!navigator.geolocation) {
+                reject({ code: 'unsupported', message: 'This browser does not support location.' });
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function (pos) { resolve(pos); },
+                function (err) {
+                    const messages = {
+                        1: 'Location permission denied. Enable location to mark attendance.',
+                        2: 'Location unavailable. Try again near a window.',
+                        3: 'Location timed out. Try again.'
+                    };
+                    reject({ code: 'geo', message: messages[err.code] || 'Could not read GPS.' });
+                },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+            );
+        });
+    }
+
+    btn.addEventListener('click', async function () {
+        if (submitting) return;
+        const pin = (pinInput.value || '').replace(/\D/g, '');
+        if (pin.length !== 6) {
+            show('danger', 'Enter the current 6-digit PIN.');
+            return;
+        }
+        submitting = true;
+        btn.disabled = true;
+        show('info', 'Checking PIN on the server…');
+        let pinOk = false;
+        try {
+            await $.ajax({
+                url: '/api/student/validate_pin',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ session_id: sessionId, pin: pin })
+            });
+            pinOk = true;
+        } catch (xhr) {
+            const data = (xhr && xhr.responseJSON) || {};
+            show('danger', data.message || 'PIN was rejected.');
+            submitting = false;
+            btn.disabled = false;
+            return;
+        }
+        if (!pinOk) return;
+        show('info', 'PIN accepted. Requesting your location…');
+        let pos;
+        try {
+            pos = await getPosition();
+        } catch (err) {
+            show('danger', err.message);
+            submitting = false;
+            btn.disabled = false;
+            return;
+        }
+        show('info', 'Checking identity, PIN, class, session, and GPS on the server…');
+        $.ajax({
+            url: '/api/student/mark_attendance',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                session_id: sessionId,
+                pin: pin,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy
+            })
+        }).done(function (res) {
+            show('success', res.message || 'Marked present.');
+            btn.classList.add('d-none');
+            pinInput.disabled = true;
+        }).fail(function (xhr) {
+            const data = xhr.responseJSON || {};
+            show('danger', data.message || 'Could not mark attendance. Check your network and try again.');
+            submitting = false;
+            btn.disabled = false;
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

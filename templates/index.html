@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}AttendSys — Home{% endblock %}
+
+{% block content %}
+<div class="landing-hero">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+            <p class="eyebrow text-uppercase small mb-2" style="color:var(--ams-accent);letter-spacing:.08em;font-weight:700;font-size:.72rem;">PIN + GPS Attendance</p>
+            <h1 class="mb-3">Professional attendance with rotating PIN and classroom GPS</h1>
+            <p class="lead text-muted mb-4">
+                Manage students, faculty, timetables, and real-time attendance with a clean, modern admin experience.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-gauge-high me-2"></i>Open Dashboard
+                </a>
+                {% elif session.get('role') == 'faculty' %}
+                <a href="{{ url_for('faculty_dashboard') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-gauge-high me-2"></i>Faculty Dashboard
+                </a>
+                {% elif session.get('role') == 'student' %}
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-gauge-high me-2"></i>Student Portal
+                </a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-user-shield me-2"></i>Admin Login
+                </a>
+                <a href="{{ url_for('faculty_login') }}" class="btn btn-outline-primary btn-lg px-4">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>Faculty
+                </a>
+                <a href="{{ url_for('student_login') }}" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="fas fa-user-graduate me-2"></i>Student
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100" style="background:linear-gradient(160deg,var(--ams-accent-soft),var(--ams-surface-2));">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <div class="icon-circle mb-3" style="width:88px;height:88px;font-size:2rem;">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <h3 class="h4 mb-2">AttendSys</h3>
+                    <p class="text-muted mb-0">Rotating PIN · Classroom GPS · Timetable · Reports</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-md-4">
+        <div class="feature-tile">
+            <i class="fas fa-user-graduate fa-2x mb-3"></i>
+            <h3 class="h5">Student Management</h3>
+            <p class="text-muted mb-0 small">Enrollments and authenticated student portal access in one place.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-tile">
+            <i class="fas fa-key fa-2x mb-3"></i>
+            <h3 class="h5">Live Attendance</h3>
+            <p class="text-muted mb-0 small">Faculty PIN sessions with server-side GPS radius checks.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-tile">
+            <i class="fas fa-chart-column fa-2x mb-3"></i>
+            <h3 class="h5">Insights & Reports</h3>
+            <p class="text-muted mb-0 small">Dashboards, defaulters, and exportable attendance reports.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

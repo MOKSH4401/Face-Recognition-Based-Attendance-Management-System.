@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="notifications-module">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1">
+                <i class="fas fa-bell me-2"></i>My Notifications
+            </h1>
+            <p class="text-muted mb-0">
+                {% if unread_count %}
+                You have <strong>{{ unread_count }}</strong> unread notification{{ 's' if unread_count != 1 else '' }}.
+                {% else %}
+                You're all caught up.
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-auto d-flex gap-2 flex-wrap">
+            {% if unread_count %}
+            <form method="POST" action="{{ url_for('notification_mark_all_read') }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-check-double me-1"></i>Mark all read
+                </button>
+            </form>
+            {% endif %}
+            <span class="badge bg-primary align-self-center fs-6">
+                {{ unread_count }} unread
+            </span>
+        </div>
+    </div>
+
+    {% if not deliveries %}
+    <div class="card shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+            <p class="mb-0">No notifications in your history yet.</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="row g-3">
+        {% for d in deliveries %}
+        {% set n = d.notification %}
+        {% set border = 'border-info' if n.priority == 'info' else ('border-warning' if n.priority == 'warning' else 'border-danger') %}
+        {% set badge = 'bg-info text-dark' if n.priority == 'info' else ('bg-warning text-dark' if n.priority == 'warning' else 'bg-danger') %}
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm notification-inbox-card border-start border-4 {{ border }} {% if not d.is_read %}notification-unread{% endif %}">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <div>
+                            <span class="badge {{ badge }}">{{ n.priority|capitalize }}</span>
+                            {% if not d.is_read %}
+                            <span class="badge bg-primary">New</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Read</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted text-nowrap">
+                            {{ d.created_at.strftime('%b %d, %Y') if d.created_at else '' }}
+                        </small>
+                    </div>
+                    <h5 class="card-title">{{ n.title }}</h5>
+                    <p class="card-text flex-grow-1">{{ n.message }}</p>
+                    {% if n.course %}
+                    <p class="small text-muted mb-2">
+                        <i class="fas fa-book me-1"></i>{{ n.course.name }}
+                    </p>
+                    {% endif %}
+                    <div class="mt-auto d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {% if d.read_at %}
+                            Read {{ d.read_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                            {{ d.created_at.strftime('%H:%M') if d.created_at else '' }}
+                            {% endif %}
+                        </small>
+                        {% if not d.is_read %}
+                        <form method="POST" action="{{ url_for('notification_mark_read', delivery_id=d.id) }}">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-check me-1"></i>Mark read
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block page_heading %}Admin Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="page-hero">
+        <div>
+            <p class="eyebrow mb-1">Administration</p>
+            <h1 class="display-6 mb-1 fw-semibold">
+                <i class="fas fa-gauge-high me-2" style="color:var(--ams-accent)"></i>Admin Dashboard
+            </h1>
+            <p class="text-muted mb-0">
+                Overview of students, faculty, attendance, and system activity
+                <span id="analytics-updated" class="ms-2 small"></span>
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('attendance') }}" class="btn btn-primary">
+                <i class="fas fa-key me-1"></i>PIN Attendance
+            </a>
+            <a href="{{ url_for('timetable_page') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-calendar-days me-1"></i>Timetable
+            </a>
+            <button type="button" class="btn btn-outline-secondary" id="btn-refresh-analytics">
+                <i class="fas fa-rotate me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <div id="analytics-error" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- Stats cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="dash-stat-label">Total Students</div>
+                            <div class="dash-stat-value" id="kpi-total-students">—</div>
+                        </div>
+                        <div class="dash-stat-icon bg-primary-subtle text-primary"><i class="fas fa-user-graduate"></i></div>
+                    </div>
+                    <a href="{{ url_for('students') }}" class="stretched-link small text-decoration-none">Manage →</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="dash-stat-label">Total Faculty</div>
+                            <div class="dash-stat-value" id="kpi-total-faculty">—</div>
+                        </div>
+                        <div class="dash-stat-icon bg-warning-subtle text-warning"><i class="fas fa-chalkboard-teacher"></i></div>
+                    </div>
+                    <a href="{{ url_for('faculty_list') }}" class="stretched-link small text-decoration-none">Manage →</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="dash-stat-label">Courses</div>
+                            <div class="dash-stat-value" id="kpi-total-courses">—</div>
+                        </div>
+                        <div class="dash-stat-icon bg-info-subtle text-info"><i class="fas fa-book"></i></div>
+                    </div>
+                    <a href="{{ url_for('courses') }}" class="stretched-link small text-decoration-none">Manage →</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="dash-stat-label">Today's Marks</div>
+                            <div class="dash-stat-value" id="kpi-today-attendance">—</div>
+                        </div>
+                        <div class="dash-stat-icon bg-success-subtle text-success"><i class="fas fa-clipboard-check"></i></div>
+                    </div>
+                    <span class="small text-muted">Live from PostgreSQL</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="dash-stat-label">Present Today</div>
+                    <div class="dash-stat-value text-success" id="kpi-present">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="dash-stat-label">Absent Today</div>
+                    <div class="dash-stat-value text-danger" id="kpi-absent">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="dash-stat-label">Attendance %</div>
+                    <div class="dash-stat-value" id="kpi-percentage">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card dash-stat-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex justify-content-between">
+                    <div>
+                        <div class="dash-stat-label">This Week</div>
+                        <div class="dash-stat-value" id="kpi-weekly">—</div>
+                    </div>
+                    <div>
+                        <div class="dash-stat-label text-end">This Month</div>
+                        <div class="dash-stat-value text-end" id="kpi-monthly">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Weekly Attendance</h5>
+                    <span class="badge rounded-pill text-bg-primary">Bar</span>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="analytics-chart-wrap"><canvas id="chart-weekly-bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-info"></i>Today Status</h5>
+                    <span class="badge rounded-pill text-bg-info">Pie</span>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="analytics-chart-wrap analytics-chart-wrap-sm"><canvas id="chart-present-pie"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-success"></i>Monthly Trend</h5>
+                    <span class="badge rounded-pill text-bg-success">Line</span>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="analytics-chart-wrap"><canvas id="chart-monthly-line"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-book me-2 text-warning"></i>By Course (30d)</h5>
+                    <span class="badge rounded-pill text-bg-warning">Bar</span>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="analytics-chart-wrap"><canvas id="chart-course-bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent lists -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-success"></i>Recent Attendance</h5>
+                    <a href="{{ url_for('reports') }}" class="small">View all</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="feed-recent-attendance">
+                        <div class="list-group-item text-muted text-center py-4">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-user-graduate me-2 text-primary"></i>Recent Students</h5>
+                    <a href="{{ url_for('students') }}" class="small">View all</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="feed-recent-students">
+                        <div class="list-group-item text-muted text-center py-4">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2 text-warning"></i>Recent Faculty</h5>
+                    <a href="{{ url_for('faculty_list') }}" class="small">View all</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="feed-recent-faculty">
+                        <div class="list-group-item text-muted text-center py-4">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent">
+                    <h5 class="mb-0"><i class="fas fa-stream me-2 text-info"></i>Latest Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="activity-feed" id="feed-activities">
+                        <div class="text-muted text-center py-4">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100 dash-panel">
+                <div class="card-header border-0 bg-transparent">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2 text-primary"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="{{ url_for('attendance') }}" class="btn btn-outline-primary w-100 py-3 dash-action-btn">
+                                <i class="fas fa-key d-block mb-2 fa-lg"></i>PIN Attendance
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('students') }}" class="btn btn-outline-success w-100 py-3 dash-action-btn">
+                                <i class="fas fa-user-plus d-block mb-2 fa-lg"></i>Students
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('faculty_list') }}" class="btn btn-outline-warning w-100 py-3 dash-action-btn">
+                                <i class="fas fa-chalkboard-teacher d-block mb-2 fa-lg"></i>Faculty
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary w-100 py-3 dash-action-btn">
+                                <i class="fas fa-chart-bar d-block mb-2 fa-lg"></i>Reports
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('defaulters') }}" class="btn btn-outline-danger w-100 py-3 dash-action-btn">
+                                <i class="fas fa-exclamation-triangle d-block mb-2 fa-lg"></i>Defaulters
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('email_settings') }}" class="btn btn-outline-info w-100 py-3 dash-action-btn">
+                                <i class="fas fa-envelope d-block mb-2 fa-lg"></i>Email
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('db_admin') }}" class="btn btn-outline-light w-100 py-3 dash-action-btn">
+                                <i class="fas fa-database d-block mb-2 fa-lg"></i>Database
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/analytics-dashboard.js') }}"></script>
+{% endblock %}

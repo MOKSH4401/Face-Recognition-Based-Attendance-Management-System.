@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Reports{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="display-6 mb-1"><i class="fas fa-chart-bar me-2"></i>Attendance Reports</h1>
+        <p class="text-muted mb-0">Filter by date, student, course{% if is_admin_user %}, faculty, and department{% endif %} — then export PDF, Excel, or CSV.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h5>
+            </div>
+            <div class="card-body">
+                <form id="filter-form">
+                    <div class="mb-3">
+                        <label for="date-from" class="form-label">Date From</label>
+                        <input type="date" class="form-control" id="date-from" name="date_from">
+                    </div>
+                    <div class="mb-3">
+                        <label for="date-to" class="form-label">Date To</label>
+                        <input type="date" class="form-control" id="date-to" name="date_to">
+                    </div>
+                    <div class="mb-3">
+                        <label for="course-filter" class="form-label">Course</label>
+                        <select class="form-select" id="course-filter" name="course_id">
+                            <option value="all">All Courses</option>
+                            {% for course in courses %}
+                            <option value="{{ course.id }}">{{ course.name }} ({{ course.course_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="student-filter" class="form-label">Student</label>
+                        <select class="form-select" id="student-filter" name="student_id">
+                            <option value="all">All Students</option>
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.name }} ({{ student.student_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% if is_admin_user %}
+                    <div class="mb-3">
+                        <label for="faculty-filter" class="form-label">Faculty</label>
+                        <select class="form-select" id="faculty-filter" name="faculty_id">
+                            <option value="all">All Faculty</option>
+                            {% for member in faculty_list %}
+                            <option value="{{ member.id }}">{{ member.faculty_name }} ({{ member.department }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="department-filter" class="form-label">Department</label>
+                        <select class="form-select" id="department-filter" name="department">
+                            <option value="all">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept }}">{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Generate Report
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-reset-filters">
+                            <i class="fas fa-undo me-2"></i>Reset Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export Report</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Exports use the same filters as the table above.</p>
+                <div class="d-grid gap-2">
+                    <button type="button" id="btn-export-pdf" class="btn btn-outline-danger" disabled>
+                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                    </button>
+                    <button type="button" id="btn-export-excel" class="btn btn-outline-success" disabled>
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </button>
+                    <button type="button" id="btn-export-csv" class="btn btn-outline-info" disabled>
+                        <i class="fas fa-file-csv me-2"></i>Export CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-table me-2"></i>Attendance Records</h5>
+                <span id="record-count" class="badge bg-light text-dark">0</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 70vh;">
+                    <table class="table table-hover table-striped mb-0 align-middle" id="attendance-table">
+                        <thead class="table-dark sticky-top">
+                            <tr>
+                                <th>Student</th>
+                                <th>Course</th>
+                                <th>Faculty</th>
+                                <th>Department</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-data">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Set filters and click <strong>Generate Report</strong>.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

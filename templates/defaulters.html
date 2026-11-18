@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Defaulter Management{% endblock %}
+
+{% block content %}
+<div class="defaulter-dashboard">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1">
+                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Defaulter Management
+            </h1>
+            <p class="text-muted mb-0">
+                Students below <strong>{{ threshold }}%</strong> attendance are marked as Defaulters
+                <span id="defaulter-updated" class="ms-2 small"></span>
+            </p>
+        </div>
+        <div class="col-auto d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-outline-success" id="btn-export-excel">
+                <i class="fas fa-file-excel me-1"></i>Export Excel
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="btn-export-pdf">
+                <i class="fas fa-file-pdf me-1"></i>Export PDF
+            </button>
+            {% if session.get('role') == 'admin' %}
+            <button type="button" class="btn btn-outline-warning" id="btn-email-all-defaulters">
+                <i class="fas fa-envelope me-1"></i>Email All Defaulters
+            </button>
+            {% endif %}
+            <button type="button" class="btn btn-outline-primary" id="btn-refresh-defaulters">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <div id="defaulter-error" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- KPI cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-danger"><i class="fas fa-user-slash"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-defaulter-count">—</div>
+                            <div class="analytics-kpi-label">Defaulters</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-success"><i class="fas fa-user-check"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-satisfactory-count">—</div>
+                            <div class="analytics-kpi-label">Satisfactory</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-secondary"><i class="fas fa-list"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-total-records">—</div>
+                            <div class="analytics-kpi-label">Total Enrollments</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card analytics-kpi-card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="analytics-kpi-icon bg-info"><i class="fas fa-percent"></i></div>
+                        <div class="ms-3">
+                            <div class="analytics-kpi-value" id="kpi-avg-percentage">—</div>
+                            <div class="analytics-kpi-label">Average Attendance</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Search &amp; Filter</h5>
+        </div>
+        <div class="card-body">
+            <form id="defaulter-filter-form" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="search-input" class="form-label">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="search-input"
+                               placeholder="Student name, ID, or course...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="course-filter" class="form-label">Course</label>
+                    <select class="form-select" id="course-filter">
+                        <option value="all">All Courses</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.name }} ({{ course.course_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status-filter" class="form-label">Status</label>
+                    <select class="form-select" id="status-filter">
+                        <option value="Defaulter" selected>Defaulters Only</option>
+                        <option value="Satisfactory">Satisfactory</option>
+                        <option value="No Data">No Data</option>
+                        <option value="all">All Statuses</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Defaulter Records
+            </h5>
+            <span class="badge bg-primary" id="record-count">0</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle" id="defaulters-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Course</th>
+                            <th>Attendance %</th>
+                            <th>Sessions</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                            <tbody id="defaulters-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/defaulters.js') }}"></script>
+{% endblock %}

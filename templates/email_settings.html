@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block title %}Email Settings{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-6 mb-1">
+            <i class="fas fa-envelope me-2"></i>Email Notification Settings
+        </h1>
+        <p class="text-muted mb-0">
+            Configure SMTP (Flask-Mail) and automatic defaulter warnings when attendance falls below threshold.
+        </p>
+    </div>
+    <div class="col-auto">
+        {% if configured %}
+        <span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i>SMTP Configured</span>
+        {% else %}
+        <span class="badge bg-warning text-dark fs-6"><i class="fas fa-exclamation-circle me-1"></i>Incomplete Config</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-server me-2"></i>SMTP Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning border-0 shadow-sm mb-3">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-key fs-4 me-3 mt-1 text-warning"></i>
+                        <div>
+                            <strong class="d-block mb-1">Gmail SMTP Requirement:</strong>
+                            <span class="small">
+                                Google does not accept standard Google account passwords for SMTP. You <strong>must</strong> use a 16-character <strong>App Password</strong>:
+                            </span>
+                            <ol class="small mb-1 ps-3 mt-1">
+                                <li>Enable <strong>2-Step Verification</strong> on your Google Account.</li>
+                                <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" class="fw-bold">Google App Passwords <i class="fas fa-external-link-alt fa-xs"></i></a>.</li>
+                                <li>Generate an App Password (name it <em>Attendance System</em>).</li>
+                                <li>Paste the 16-character password into the <strong>Password</strong> field below.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('email_settings') }}">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="mail_server" class="form-label">Mail Server</label>
+                            <input type="text" class="form-control" id="mail_server" name="mail_server"
+                                   value="{{ settings.mail_server or 'smtp.gmail.com' }}" required
+                                   placeholder="smtp.gmail.com">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="mail_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="mail_port" name="mail_port"
+                                   value="{{ settings.mail_port or 587 }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="mail_use_tls" name="mail_use_tls"
+                                       {% if settings.mail_use_tls %}checked{% endif %}>
+                                <label class="form-check-label" for="mail_use_tls">Use TLS</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="mail_use_ssl" name="mail_use_ssl"
+                                       {% if settings.mail_use_ssl %}checked{% endif %}>
+                                <label class="form-check-label" for="mail_use_ssl">Use SSL</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mail_username" class="form-label">Username / Email</label>
+                            <input type="text" class="form-control" id="mail_username" name="mail_username"
+                                   value="{{ settings.mail_username or '' }}"
+                                   placeholder="your@gmail.com">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mail_password" class="form-label">Password / App Password</label>
+                            <input type="password" class="form-control" id="mail_password" name="mail_password"
+                                   placeholder="{% if settings.mail_password %}•••••••• (leave blank to keep){% else %}Enter password{% endif %}">
+                            <div class="form-text text-danger">For Gmail, use a 16-character App Password (not your normal Gmail password).</div>
+                        </div>
+                        <div class="col-12">
+                            <label for="mail_default_sender" class="form-label">Default Sender</label>
+                            <input type="email" class="form-control" id="mail_default_sender" name="mail_default_sender"
+                                   value="{{ settings.mail_default_sender or '' }}"
+                                   placeholder="noreply@yourschool.edu">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="attendance_threshold" class="form-label">Attendance Threshold (%)</label>
+                            <input type="number" class="form-control" id="attendance_threshold"
+                                   name="attendance_threshold" min="1" max="100" step="0.1"
+                                   value="{{ settings.attendance_threshold or 75 }}">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="auto_notify_enabled"
+                                       name="auto_notify_enabled"
+                                       {% if settings.auto_notify_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="auto_notify_enabled">
+                                    Auto-send when attendance falls below threshold
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Send Email Manually</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="test-email-to" class="form-label">Test recipient</label>
+                    <input type="email" class="form-control" id="test-email-to"
+                           placeholder="{{ settings.mail_username or 'you@example.com' }}"
+                           value="{{ settings.mail_username or '' }}">
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-info" id="btn-send-test">
+                        <i class="fas fa-vial me-2"></i>Send Test Email
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btn-send-all-defaulters">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Email All Defaulters Now
+                    </button>
+                    <a href="{{ url_for('defaulters') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>Open Defaulter List
+                    </a>
+                </div>
+                <div id="email-action-result" class="alert mt-3 d-none" role="alert"></div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>How it works</h5>
+            </div>
+            <div class="card-body small">
+                <ul class="mb-0">
+                    <li>When a student&apos;s attendance drops <strong>below {{ settings.attendance_threshold or 75 }}%</strong>, they are marked as a Defaulter.</li>
+                    <li>If auto-notify is enabled, a warning email is sent after attendance is taken for that course (once per day per student/course).</li>
+                    <li>Emails include <strong>Student Name</strong>, <strong>Attendance %</strong>, and a <strong>Warning Message</strong>.</li>
+                    <li>Students need an email address on their profile to receive messages.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Notification Log</h5>
+        <span class="badge bg-secondary">{{ recent_logs|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Recipient</th>
+                        <th>Student / Course</th>
+                        <th>%</th>
+                        <th>Trigger</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if recent_logs %}
+                        {% for log in recent_logs %}
+                        <tr>
+                            <td><small>{{ log.sent_at.strftime('%Y-%m-%d %H:%M') if log.sent_at else '—' }}</small></td>
+                            <td><small>{{ log.recipient_email }}</small></td>
+                            <td>
+                                <small>
+                                    {{ log.student.name if log.student else '—' }}
+                                    /
+                                    {{ log.course.name if log.course else '—' }}
+                                </small>
+                            </td>
+                            <td>
+                                {% if log.attendance_percentage is not none %}
+                                {{ log.attendance_percentage }}%
+                                {% else %}—{% endif %}
+                            </td>
+                            <td><span class="badge bg-dark">{{ log.trigger }}</span></td>
+                            <td>
+                                {% if log.status == 'sent' %}
+                                <span class="badge bg-success">sent</span>
+                                {% elif log.status == 'failed' %}
+                                <span class="badge bg-danger" title="{{ log.error_message or '' }}">failed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ log.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No emails sent yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    function showResult(ok, message) {
+        var box = document.getElementById('email-action-result');
+        if (!box) return;
+        box.classList.remove('d-none', 'alert-success', 'alert-danger');
+        box.classList.add(ok ? 'alert-success' : 'alert-danger');
+        box.textContent = message;
+    }
+
+    var testBtn = document.getElementById('btn-send-test');
+    if (testBtn) {
+        testBtn.addEventListener('click', function () {
+            var to = (document.getElementById('test-email-to') || {}).value || '';
+            testBtn.disabled = true;
+            fetch('/api/email/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ to: to })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                showResult(!!data.ok, data.message || 'Done');
+            })
+            .catch(function (err) {
+                showResult(false, 'Request failed: ' + err);
+            })
+            .finally(function () { testBtn.disabled = false; });
+        });
+    }
+
+    var allBtn = document.getElementById('btn-send-all-defaulters');
+    if (allBtn) {
+        allBtn.addEventListener('click', function () {
+            if (!confirm('Send warning emails to all current defaulters?')) return;
+            allBtn.disabled = true;
+            fetch('/api/email/send-all-defaulters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({})
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                showResult(data.status === 'success', data.message || 'Done');
+                if (data.status === 'success') {
+                    setTimeout(function () { window.location.reload(); }, 1200);
+                }
+            })
+            .catch(function (err) {
+                showResult(false, 'Request failed: ' + err);
+            })
+            .finally(function () { allBtn.disabled = false; });
+        });
+    }
+})();
+</script>
+{% endblock %}

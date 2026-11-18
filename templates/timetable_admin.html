@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+
+{% block title %}Timetable Management{% endblock %}
+
+{% block content %}
+<div class="timetable-module">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1"><i class="fas fa-calendar-alt me-2"></i>Timetable Module</h1>
+            <p class="text-muted mb-0">Create departments, semesters, subjects, and assign faculty · time · room.</p>
+        </div>
+        {% if current_slot %}
+        <div class="col-auto">
+            <div class="alert alert-success mb-0 py-2 px-3">
+                <i class="fas fa-broadcast-tower me-1"></i>
+                <strong>Live now:</strong>
+                {{ current_slot.subject.name if current_slot.subject else '—' }}
+                · {{ current_slot.start_time.strftime('%H:%M') }}–{{ current_slot.end_time.strftime('%H:%M') }}
+                · {{ current_slot.room }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <ul class="nav nav-tabs mb-3 flex-wrap" role="tablist">
+        <li class="nav-item"><button class="nav-link {% if active_tab == 'assign' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-assign" type="button">Assign Timetable</button></li>
+        <li class="nav-item"><button class="nav-link {% if active_tab == 'grid' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-grid" type="button">Weekly Grid</button></li>
+        <li class="nav-item"><button class="nav-link {% if active_tab == 'departments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-dept" type="button">Departments</button></li>
+        <li class="nav-item"><button class="nav-link {% if active_tab == 'semesters' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-sem" type="button">Semesters</button></li>
+        <li class="nav-item"><button class="nav-link {% if active_tab == 'subjects' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-sub" type="button">Subjects</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Assign -->
+        <div class="tab-pane fade {% if active_tab == 'assign' %}show active{% endif %}" id="tab-assign">
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Assign Slot</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="assign_slot">
+                                <input type="hidden" name="tab" value="assign">
+                                <div class="mb-3">
+                                    <label class="form-label">Department</label>
+                                    <select class="form-select" name="slot_department_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for d in departments %}
+                                        <option value="{{ d.id }}">{{ d.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Semester</label>
+                                    <select class="form-select" name="slot_semester_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for s in semesters %}
+                                        <option value="{{ s.id }}">{{ s.name }}{% if s.academic_year %} ({{ s.academic_year }}){% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Subject</label>
+                                    <select class="form-select" name="slot_subject_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for sub in subjects %}
+                                        <option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Faculty</label>
+                                    <select class="form-select" name="slot_faculty_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for f in faculty_list %}
+                                        <option value="{{ f.id }}">{{ f.faculty_name }} ({{ f.department }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Day</label>
+                                    <select class="form-select" name="slot_day" required>
+                                        {% for i in range(7) %}
+                                        <option value="{{ i }}">{{ weekdays[i] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label">Start Time</label>
+                                        <input type="time" class="form-control" name="slot_start" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">End Time</label>
+                                        <input type="time" class="form-control" name="slot_end" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Room</label>
+                                    <input type="text" class="form-control" name="slot_room" required placeholder="e.g. A-101">
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Assign</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Assigned Slots</h5>
+                            <span class="badge bg-secondary">{{ entries|length }}</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Day</th>
+                                            <th>Time</th>
+                                            <th>Subject</th>
+                                            <th>Faculty</th>
+                                            <th>Room</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for e in entries %}
+                                        <tr class="{% if entry_rows[loop.index0].is_now %}table-success{% endif %}">
+                                            <td>{{ weekdays[e.day_of_week] }}</td>
+                                            <td><small>{{ e.start_time.strftime('%H:%M') }}–{{ e.end_time.strftime('%H:%M') }}</small></td>
+                                            <td>{{ e.subject.code if e.subject else '—' }}</td>
+                                            <td>{{ e.faculty.faculty_name if e.faculty else '—' }}</td>
+                                            <td>{{ e.room }}</td>
+                                            <td>
+                                                <form method="POST" class="d-inline" onsubmit="return confirm('Remove this slot?');">
+                                                    <input type="hidden" name="action" value="delete_slot">
+                                                    <input type="hidden" name="tab" value="assign">
+                                                    <input type="hidden" name="slot_id" value="{{ e.id }}">
+                                                    <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr><td colspan="6" class="text-center text-muted py-4">No slots yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="tab-pane fade {% if active_tab == 'grid' %}show active{% endif %}" id="tab-grid">
+            <div class="card shadow-sm">
+                <div class="card-header"><h5 class="mb-0">Weekly Timetable</h5></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for day_i in range(7) %}
+                        <div class="col-12 col-md-6 col-xl">
+                            <h6 class="text-primary border-bottom pb-1">{{ weekdays[day_i] }}</h6>
+                            {% set day_slots = entry_rows|selectattr('day', 'equalto', day_i)|list %}
+                            {% for r in day_slots %}
+                            <div class="card mb-2 timetable-slot-card {% if r.is_now %}border-success{% endif %}">
+                                <div class="card-body p-2">
+                                    <div class="fw-semibold small">{{ r.start }}–{{ r.end }}</div>
+                                    <div class="small">{{ r.subject_code }} · {{ r.subject }}</div>
+                                    <div class="small text-muted">{{ r.faculty }} · {{ r.room }}</div>
+                                    {% if r.is_now %}<span class="badge bg-success">Now</span>{% endif %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="small text-muted">—</p>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Departments -->
+        <div class="tab-pane fade {% if active_tab == 'departments' %}show active{% endif %}" id="tab-dept">
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white"><h5 class="mb-0">Add Department</h5></div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="add_department">
+                                <input type="hidden" name="tab" value="departments">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input class="form-control" name="dept_name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Code (optional)</label>
+                                    <input class="form-control" name="dept_code" placeholder="CSE">
+                                </div>
+                                <button class="btn btn-primary" type="submit">Create</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="row g-3">
+                        {% for d in departments %}
+                        <div class="col-sm-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body">
+                                    <h6 class="mb-1">{{ d.name }}</h6>
+                                    <p class="small text-muted mb-2">{{ d.code or 'No code' }}</p>
+                                    <form method="POST" onsubmit="return confirm('Delete department?');">
+                                        <input type="hidden" name="action" value="delete_department">
+                                        <input type="hidden" name="tab" value="departments">
+                                        <input type="hidden" name="id" value="{{ d.id }}">
+                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No departments yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Semesters -->
+        <div class="tab-pane fade {% if active_tab == 'semesters' %}show active{% endif %}" id="tab-sem">
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white"><h5 class="mb-0">Add Semester</h5></div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="add_semester">
+                                <input type="hidden" name="tab" value="semesters">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input class="form-control" name="sem_name" required placeholder="Semester 1">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Code</label>
+                                    <input class="form-control" name="sem_code" placeholder="SEM-1">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Academic Year</label>
+                                    <input class="form-control" name="academic_year" placeholder="2025-26">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Department (optional)</label>
+                                    <select class="form-select" name="sem_department_id">
+                                        <option value="">All / Shared</option>
+                                        {% for d in departments %}
+                                        <option value="{{ d.id }}">{{ d.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" type="submit">Create</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="row g-3">
+                        {% for s in semesters %}
+                        <div class="col-sm-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <h6 class="mb-1">{{ s.name }}</h6>
+                                        <span class="badge {% if s.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ 'Active' if s.is_active else 'Inactive' }}
+                                        </span>
+                                    </div>
+                                    <p class="small text-muted mb-2">
+                                        {{ s.code or '—' }} · {{ s.academic_year or '—' }}
+                                        {% if s.department %} · {{ s.department.name }}{% endif %}
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="toggle_semester">
+                                            <input type="hidden" name="tab" value="semesters">
+                                            <input type="hidden" name="id" value="{{ s.id }}">
+                                            <button class="btn btn-sm btn-outline-primary">Toggle</button>
+                                        </form>
+                                        <form method="POST" onsubmit="return confirm('Delete semester?');">
+                                            <input type="hidden" name="action" value="delete_semester">
+                                            <input type="hidden" name="tab" value="semesters">
+                                            <input type="hidden" name="id" value="{{ s.id }}">
+                                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No semesters yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subjects -->
+        <div class="tab-pane fade {% if active_tab == 'subjects' %}show active{% endif %}" id="tab-sub">
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white"><h5 class="mb-0">Add Subject</h5></div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="add_subject">
+                                <input type="hidden" name="tab" value="subjects">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input class="form-control" name="subject_name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Code</label>
+                                    <input class="form-control" name="subject_code" required placeholder="CS301">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Department</label>
+                                    <select class="form-select" name="subject_department_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for d in departments %}
+                                        <option value="{{ d.id }}">{{ d.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Semester</label>
+                                    <select class="form-select" name="subject_semester_id" required>
+                                        <option value="">— Select —</option>
+                                        {% for s in semesters %}
+                                        <option value="{{ s.id }}">{{ s.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="alert alert-light border small mb-3 text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    <strong>Unified Subject &amp; Course:</strong> Automatically synced for timetable, attendance, faculty assignment, and enrollment.
+                                </div>
+                                <button class="btn btn-primary" type="submit">Create</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="row g-3">
+                        {% for sub in subjects %}
+                        <div class="col-sm-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body">
+                                    <h6 class="mb-1">{{ sub.code }} — {{ sub.name }}</h6>
+                                    <p class="small text-muted mb-2">
+                                        {{ sub.department.name if sub.department else '' }}
+                                        · {{ sub.semester.name if sub.semester else '' }}
+                                    </p>
+                                    <form method="POST" onsubmit="return confirm('Delete subject?');">
+                                        <input type="hidden" name="action" value="delete_subject">
+                                        <input type="hidden" name="tab" value="subjects">
+                                        <input type="hidden" name="id" value="{{ sub.id }}">
+                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No subjects yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

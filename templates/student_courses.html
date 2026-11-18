@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}My Courses{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-6 mb-1"><i class="fas fa-book me-2"></i>My Courses</h1>
+        <p class="text-muted mb-0">Courses you are enrolled in</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Course</th>
+                        <th>Code</th>
+                        <th>Attendance %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if courses %}
+                        {% for course in courses %}
+                        {% set stats = course_stats.get(course.id) %}
+                        <tr>
+                            <td class="fw-semibold">{{ course.name }}</td>
+                            <td><span class="badge bg-secondary">{{ course.course_id }}</span></td>
+                            <td>
+                                {% if stats and stats.attendance_percentage is not none %}
+                                <span class="{% if stats.attendance_percentage < threshold %}text-danger fw-bold{% else %}text-success{% endif %}">
+                                    {{ stats.attendance_percentage }}%
+                                </span>
+                                <small class="text-muted">({{ stats.present_sessions }}/{{ stats.total_sessions }})</small>
+                                {% else %}
+                                <span class="text-muted">No data</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if stats %}
+                                    {% if stats.status == 'Defaulter' %}
+                                    <span class="badge bg-danger">Defaulter</span>
+                                    {% elif stats.status == 'Satisfactory' %}
+                                    <span class="badge bg-success">Satisfactory</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">No Data</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge bg-secondary">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">You are not enrolled in any courses.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

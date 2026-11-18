@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Download My Reports{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-6 mb-1"><i class="fas fa-download me-2"></i>Download Reports</h1>
+        <p class="text-muted mb-0">Export your own attendance records as PDF, Excel, or CSV.</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Report Filters</h5>
+            </div>
+            <div class="card-body">
+                <form id="student-report-form">
+                    <div class="mb-3">
+                        <label for="course_id" class="form-label">Course</label>
+                        <select class="form-select" id="course_id" name="course_id">
+                            <option value="all">All My Courses</option>
+                            {% for course in courses %}
+                            <option value="{{ course.id }}">{{ course.name }} ({{ course.course_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="date_from" class="form-label">Date From</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date_to" class="form-label">Date To</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to">
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-danger" data-fmt="pdf">
+                            <i class="fas fa-file-pdf me-2"></i>Download PDF
+                        </button>
+                        <button type="button" class="btn btn-outline-success" data-fmt="excel">
+                            <i class="fas fa-file-excel me-2"></i>Download Excel
+                        </button>
+                        <button type="button" class="btn btn-outline-info" data-fmt="csv">
+                            <i class="fas fa-file-csv me-2"></i>Download CSV
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById('student-report-form');
+    if (!form) return;
+    form.querySelectorAll('button[data-fmt]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var params = new URLSearchParams();
+            ['course_id', 'date_from', 'date_to'].forEach(function (name) {
+                var el = form.elements[name];
+                if (el && el.value) params.append(name, el.value);
+            });
+            window.location.href = '/student_reports/export/' + btn.getAttribute('data-fmt') + '?' + params.toString();
+        });
+    });
+})();
+</script>
+{% endblock %}

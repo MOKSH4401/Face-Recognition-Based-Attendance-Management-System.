@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}My Timetable{% endblock %}
+
+{% block content %}
+<div class="timetable-module">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="display-6 mb-1"><i class="fas fa-calendar-alt me-2"></i>My Timetable</h1>
+            <p class="text-muted mb-0">
+                {% if role == 'faculty' %}Classes assigned to you.
+                {% else %}Schedule for your enrolled courses.{% endif %}
+            </p>
+        </div>
+        {% if current_slot %}
+        <div class="col-auto">
+            <div class="alert alert-success mb-0 py-2 px-3">
+                <i class="fas fa-clock me-1"></i>
+                <strong>In session:</strong>
+                {{ current_slot.subject.name if current_slot.subject else '—' }}
+                · {{ current_slot.start_time.strftime('%H:%M') }}–{{ current_slot.end_time.strftime('%H:%M') }}
+                · Room {{ current_slot.room }}
+                {% if role == 'faculty' and current_slot.subject and current_slot.subject.course_id %}
+                <a href="{{ url_for('attendance') }}" class="alert-link ms-2">Take Attendance</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Department</label>
+                    <select class="form-select" name="department_id">
+                        <option value="">All</option>
+                        {% for d in departments %}
+                        <option value="{{ d.id }}" {% if filter_dept and filter_dept|string == d.id|string %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Semester</label>
+                    <select class="form-select" name="semester_id">
+                        <option value="">All</option>
+                        {% for s in semesters %}
+                        <option value="{{ s.id }}" {% if filter_sem and filter_sem|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-1"></i>Filter</button>
+                    <a href="{{ url_for('timetable_page') }}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><h5 class="mb-0">Weekly Grid</h5></div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for day_i in range(7) %}
+                <div class="col-12 col-md-6 col-xl">
+                    <h6 class="text-primary border-bottom pb-1">{{ weekdays[day_i] }}</h6>
+                    {% set day_slots = entry_rows|selectattr('day', 'equalto', day_i)|list %}
+                    {% for r in day_slots %}
+                    <div class="card mb-2 timetable-slot-card {% if r.is_now %}border-success border-2{% endif %}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-semibold small">{{ r.start }}–{{ r.end }}</span>
+                                {% if r.is_now %}<span class="badge bg-success">Now</span>{% endif %}
+                            </div>
+                            <div class="small">{{ r.subject_code }} · {{ r.subject }}</div>
+                            <div class="small text-muted">{{ r.room }}{% if role == 'student' %} · {{ r.faculty }}{% endif %}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="small text-muted">No classes</p>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between">
+            <h5 class="mb-0">All Slots</h5>
+            <span class="badge bg-primary">{{ entry_rows|length }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Subject</th>
+                        {% if role == 'student' %}<th>Faculty</th>{% endif %}
+                        <th>Room</th>
+                        <th>Semester</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in entry_rows %}
+                    <tr class="{% if r.is_now %}table-success{% endif %}">
+                        <td>{{ r.day_name }}</td>
+                        <td>{{ r.start }}–{{ r.end }}</td>
+                        <td>{{ r.subject_code }} — {{ r.subject }}</td>
+                        {% if role == 'student' %}<td>{{ r.faculty }}</td>{% endif %}
+                        <td>{{ r.room }}</td>
+                        <td>{{ r.semester }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No timetable entries found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

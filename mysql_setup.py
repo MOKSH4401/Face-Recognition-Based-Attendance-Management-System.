@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MySQL Database Setup Script for Facial Recognition Attendance System
+MySQL Database Setup Script for Attendance Management System
 This script creates the MySQL database and required tables for the application
 """
 
